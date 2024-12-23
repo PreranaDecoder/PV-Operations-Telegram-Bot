@@ -5,6 +5,8 @@ from datetime import time, datetime
 import json
 import logging
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
@@ -15,6 +17,14 @@ app = FastAPI()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+VERCEL_URL = os.getenv("VERCEL_URL")
+
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is not set.")
+if not ADMIN_CHAT_ID:
+    raise ValueError("ADMIN_CHAT_ID environment variable is not set.")
+if not VERCEL_URL:
+    raise ValueError("VERCEL_URL environment variable is not set.")
 
 # Telegram bot setup
 application = Application.builder().token(BOT_TOKEN).build()
@@ -227,9 +237,9 @@ def main():
         # Set webhook
         application.run_webhook(
             listen="0.0.0.0",
-            port=int(os.getenv("PORT", 8000)),
+            port=int(os.getenv("PORT", 8080)),
             url_path=BOT_TOKEN,
-            webhook_url=f"https://{os.getenv('VERCEL_URL')}/{BOT_TOKEN}"
+            webhook_url=f"https://{VERCEL_URL}/{BOT_TOKEN}"
         )
 
     except KeyboardInterrupt:
