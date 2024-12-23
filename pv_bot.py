@@ -1,3 +1,4 @@
+from fastapi import FastAPI, Request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from datetime import time, datetime
@@ -9,8 +10,24 @@ import os
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 logger = logging.getLogger(__name__)
 
+# Initialize the FastAPI app
+app = FastAPI()
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
+
+# Telegram bot setup
+application = Application.builder().token(BOT_TOKEN).build()
+
+@app.get("/")
+def home():
+    return {"status": "Telegram bot is running"}
+
+@app.post(f"/{BOT_TOKEN}")
+async def webhook(request: Request):
+    update = Update.de_json(await request.json(), application.bot)
+    await application.process_update(update)
+    return {"status": "ok"}
 
 # Persistent storage for configuration
 config = {
@@ -183,7 +200,6 @@ async def default_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     try:
         logger.info("Starting the bot...")
-        application = Application.builder().token(BOT_TOKEN).build()
 
         # Add Command Handlers
         application.add_handler(CommandHandler("start", start))
@@ -208,8 +224,14 @@ def main():
         leaderboard_time = datetime.strptime(config["leaderboard_time"], "%H:%M").time()
         job_queue.run_daily(update_leaderboard, time=leaderboard_time, days=(0, 1, 2, 3, 4, 5, 6), data="-4655617300")
 
-        logger.info("Bot is now polling for updates...")
-        application.run_polling()
+        # Set webhook
+        application.run_webhook(
+            listen="0.0.0.0",
+            port=int(os.getenv("PORT", 8000)),
+            url_path=BOT_TOKEN,
+            webhook_url=f"https://{os.getenv('VERCEL_URL')}/{BOT_TOKEN}"
+        )
+
     except KeyboardInterrupt:
         logger.info("\nBot stopped gracefully. Goodbye!")
 
